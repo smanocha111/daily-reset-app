@@ -2,36 +2,59 @@ name: Update Tips
 
 on:
   schedule:
-    - cron: '0 6 * * *' # Runs at 6:00 AM UTC
-  workflow_dispatch: # Allows manual run button
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: update-tips
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
-  update-data:
+  update-tips:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          # I REMOVED THE CACHE LINES HERE TO PREVENT ERRORS
+          python-version: "3.12"
 
       - name: Install dependencies
-        # This looks for requirements.txt in the MAIN folder
         run: pip install -r requirements.txt
+
+      - name: Restore pipeline state
+        uses: actions/cache@v4
+        with:
+          path: .last_checked.json
+          key: tip-pipeline-state-${{ github.ref_name }}
+          restore-keys: |
+            tip-pipeline-state-
 
       - name: Run update script
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        # This looks for the script in the MAIN folder
         run: python update_tips.py
 
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Daily content update"
-          file_pattern: 'lib/data.ts data/tips.json'
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet lib/data.ts data/tips.json 2>/dev/null && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated tips
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lib/data.ts data/tips.json
+          git commit -m "chore: daily content update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
