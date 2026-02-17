@@ -45,16 +45,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python update_tips.py
 
-      - name: Check for changes
-        id: changes
-        run: |
-          git diff --quiet lib/data.ts data/tips.json 2>/dev/null && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
-
       - name: Commit updated tips
-        if: steps.changes.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add lib/data.ts data/tips.json
-          git commit -m "chore: daily content update $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git push
+          git add -A data/ lib/ 2>/dev/null || true
+          git diff --staged --quiet && echo "No changes to commit" || (git commit -m "chore: daily content update $(date -u '+%Y-%m-%d %H:%M UTC')" && git push)
