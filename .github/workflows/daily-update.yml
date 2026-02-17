@@ -2,9 +2,8 @@ name: Update Tips
 
 on:
   schedule:
-    # Runs at 6:00 AM UTC daily
-    - cron: '0 6 * * *'
-  workflow_dispatch: # Allows manual triggering
+    - cron: '0 6 * * *' # Runs at 6:00 AM UTC
+  workflow_dispatch: # Allows manual run button
 
 jobs:
   update-data:
@@ -18,23 +17,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-          # FIXED: Removed 'backend/' so it looks in the main folder
-          cache-dependency-path: requirements.txt
+          # I REMOVED THE CACHE LINES HERE TO PREVENT ERRORS
 
       - name: Install dependencies
-        # FIXED: Removed 'backend/' here too
+        # This looks for requirements.txt in the MAIN folder
         run: pip install -r requirements.txt
 
       - name: Run update script
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        # FIXED: Removed 'backend/' here too
+        # This looks for the script in the MAIN folder
         run: python update_tips.py
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Daily content update: ${{ steps.date.outputs.date }}"
-          file_pattern: 'lib/data.ts data/tips.json' # Adjust this to match where your script saves data
+          commit_message: "Daily content update"
+          file_pattern: 'lib/data.ts data/tips.json'
